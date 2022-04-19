@@ -46,3 +46,32 @@ func CreateUsers( c *gin.Context){
 	
 	c.JSON(http.StatusCreated, result)
 }
+func UpdateUser(c *gin.Context){
+
+	userID,userErr:=strconv.ParseInt(c.Param("user_id"),10,64)
+	if userErr !=nil{
+		err:= errors.NewBadRequestError("User id should be number")
+		c.JSON(err.Status,err)
+		return
+	}
+
+	var user users.User
+	fmt.Println(user)
+	if err:=c.ShouldBindJSON(&user); err != nil{
+		
+		restErr := errors.NewBadRequestError("Invalid JSON Body")
+		c.JSON(restErr.Status,restErr)
+
+		return
+	}	
+	user.Id=userID
+	isPartial := c.Request.Method== http.MethodPatch
+
+	result,saveErr :=services.UpdateUser(isPartial,user)
+	if saveErr !=nil{
+		c.JSON(saveErr.Status,saveErr)
+		return
+	}
+	
+	c.JSON(http.StatusCreated, result)
+}
