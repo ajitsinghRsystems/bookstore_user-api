@@ -17,6 +17,7 @@ const(
 	queryInserUser="INSERT INTO users(first_name, last_name, email, date_created) VALUES(@p1, @p2, @p3, @p4);select isNull(SCOPE_IDENTITY(), -1)"
 	queryGetUser="Select ID, First_name,Last_name, Email, Date_Created from Users where ID =@p1;"
 	queryUpdateUser="Update users set first_name=@p1 , last_name=@p2, email=@p3 from Users where ID =@p4;"
+	queryDeleteUser ="Delete from users where ID=@p1;"
 )
 func (user *User) Get()(*errors.RestErr){
 
@@ -107,4 +108,17 @@ if err !=nil{
 log.Println(result.RowsAffected())
 return nil
 	
+}
+func (user *User) Delete() *errors.RestErr{
+
+stmt, err := users_db.Client.Prepare((queryDeleteUser))
+if err!= nil{
+	return errors.NewInternalServerError(err.Error())
+}
+defer stmt.Close()
+_, err = stmt.Exec(user.Id)
+if err !=nil{
+	return errors.NewInternalServerError(err.Error())	
+}
+return nil
 }
