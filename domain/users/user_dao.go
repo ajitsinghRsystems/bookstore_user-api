@@ -4,9 +4,9 @@ import (
 	"bookstore_user-api/datasources/users_db"
 	"bookstore_user-api/utils/date_utils"
 	"bookstore_user-api/utils/errors"
+	"context"
 	"fmt"
 	"log"
-	"context"
 	
 )
 
@@ -14,10 +14,11 @@ var (
 	usersDB =make(map[int64] *User)
 )
 const(
-	queryInserUser="INSERT INTO users(first_name, last_name, email, date_created) VALUES(@p1, @p2, @p3, @p4);select isNull(SCOPE_IDENTITY(), -1)"
-	queryGetUser="Select ID, First_name,Last_name, Email, Date_Created from Users where ID =@p1;"
+	queryInserUser="INSERT INTO users(first_name, last_name, email, date_created,status, password) VALUES(@p1, @p2, @p3, @p4,@p5,@p6);select isNull(SCOPE_IDENTITY(), -1)"
+	queryGetUser="Select ID, First_name,Last_name, Email, Date_Created,status,password from Users where ID =@p1;"
 	queryUpdateUser="Update users set first_name=@p1 , last_name=@p2, email=@p3 from Users where ID =@p4;"
 	queryDeleteUser ="Delete from users where ID=@p1;"
+	queryFindbyStatus="Select ID, First_name,Last_name, Email, Date_Created, status,password from users where status=@p1;"
 )
 func (user *User) Get()(*errors.RestErr){
 
@@ -32,7 +33,7 @@ func (user *User) Get()(*errors.RestErr){
 	defer stmt.Close()
 
  	result := stmt.QueryRow(user.Id)
- 	if  err:= result.Scan(&user.Id,&user.FirstName,&user.LastName,&user.Email,&user.DateCreated); err != nil{
+ 	if  err:= result.Scan(&user.Id,&user.FirstName,&user.LastName,&user.Email,&user.DateCreated,&user.Status,&user.Password); err != nil{
 		 fmt.Print()
 		 return errors.NewNotFoundError(fmt.Sprintf("User %d not found %s", user.Id,err.Error()))
  	}
@@ -55,7 +56,8 @@ func  (user *User) Save() *errors.RestErr {
 	//
 
 	user.DateCreated = date_utils.GetNowString()
-	insertResult, err :=stmt.QueryContext(ctx,user.FirstName, user.LastName, user.Email, user.DateCreated)
+	//user.Password="Test123"
+	insertResult, err :=stmt.QueryContext(ctx,user.FirstName, user.LastName, user.Email, user.DateCreated,user.Status,user.Password)
 	//insertResult, err := stmt.Exec(user.FirstName, user.LastName, user.Email, user.DateCreated)
 
 	if err != nil {
@@ -121,4 +123,32 @@ if err !=nil{
 	return errors.NewInternalServerError(err.Error())	
 }
 return nil
+}
+func (user *User) FindByStatus(status string) ([]User,*errors.RestErr) {
+	stmt, err := users_db.Client.Prepare((queryFindbyStatus))
+	if err!= nil{
+		return nil,errors.NewInternalServerError(err.Error())
+	}
+	defer stmt.Close()
+	rows, err := stmt.Query(status)
+	
+	if err !=nil{
+		return nil,errors.NewInternalServerError(err.Error())	
+	}
+	defer rows.Close()
+	results:= make([]User, 0)
+	for rows.Next()	{
+		var  user User
+		if err:=rows.Scan(&user.Id,&user.FirstName,&user.LastName,&user.Email,&user.DateCreated,&user.Status,&user.Password); err!= nil{
+			return nil,errors.NewInternalServerError(err.Error())
+
+		}
+		results = append(results, user)
+
+	}
+	if len(results)==0{
+		return nil, errors.NewNotFoundError(fmt.Sprintf("No user matching with status %s",status))
+		}
+
+	return results,nil
 }
